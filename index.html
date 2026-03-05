@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Doll Oni Stage Battle</title>
+<title>Doll Oni Battle</title>
 
 <style>
 body{
@@ -16,7 +16,7 @@ color:white;
 canvas{
 display:block;
 margin:auto;
-background:linear-gradient(#101010,#350000);
+background:linear-gradient(#111,#330000);
 }
 
 #ui{
@@ -34,7 +34,7 @@ font-size:14px;
 
 #restart{
 position:absolute;
-top:250px;
+top:220px;
 left:50%;
 transform:translateX(-50%);
 padding:12px 25px;
@@ -77,15 +77,13 @@ document.addEventListener("keyup",e=>keys[e.key]=false)
 
 let player
 let enemies=[]
-let obstacles=[]
 let bullets=[]
+let obstacles=[]
 let boss=null
 
 let worldX=0
 let stage=1
-let stageLength=2000
 let gameOver=false
-let stageClear=false
 
 function init(){
 
@@ -100,30 +98,32 @@ defending:false
 
 worldX=0
 enemies=[]
-obstacles=[]
 bullets=[]
+obstacles=[]
 boss=null
-stageClear=false
 gameOver=false
 
 spawnStage()
 
 document.getElementById("restart").style.display="none"
+
 }
 
 function spawnStage(){
 
-for(let i=0;i<5;i++){
+for(let i=0;i<4;i++){
 
 enemies.push({
-x:600+i*300,
+x:700+i*300,
 y:350,
-hp:2
+type:Math.floor(Math.random()*2),
+hp:3,
+shoot:120
 })
 
 }
 
-for(let i=0;i<4;i++){
+for(let i=0;i<3;i++){
 
 obstacles.push({
 x:500+i*400,
@@ -135,9 +135,11 @@ h:40
 }
 
 boss={
-x:stageLength+200,
+x:2200,
 y:330,
-hp:10
+hp:15,
+shoot:80,
+dir:1
 }
 
 }
@@ -180,13 +182,33 @@ enemies.forEach(e=>{
 
 let ex=e.x-worldX
 
-if(Math.abs(ex-player.x)<50 && player.attacking){
+if(e.type===0){
+
+e.shoot--
+
+if(e.shoot<0){
+
+bullets.push({x:ex,y:e.y+20,speed:5})
+e.shoot=120
+
+}
+
+}
+
+if(e.type===1){
+
+if(ex>player.x) e.x-=1.5
+else e.x+=1.5
+
+}
+
+if(player.attacking && Math.abs(ex-player.x)<50){
 
 e.hp--
 
 }
 
-if(Math.abs(ex-player.x)<30 && Math.abs(e.y-player.y)<40){
+if(Math.abs(ex-player.x)<30 && Math.abs(e.y-player.y)<50){
 
 triggerGameOver()
 
@@ -195,6 +217,26 @@ triggerGameOver()
 })
 
 enemies=enemies.filter(e=>e.hp>0)
+
+bullets.forEach(b=>{
+
+b.x-=b.speed
+
+if(Math.abs(b.x-player.x)<20 && Math.abs(b.y-player.y)<40){
+
+if(player.defending){
+
+b.speed=-b.speed
+
+}else{
+
+triggerGameOver()
+
+}
+
+}
+
+})
 
 obstacles.forEach(o=>{
 
@@ -212,13 +254,26 @@ if(boss){
 
 let bx=boss.x-worldX
 
-if(Math.abs(bx-player.x)<50 && player.attacking){
+boss.x+=boss.dir*2
+
+if(boss.x>2400 || boss.x<2000) boss.dir*=-1
+
+boss.shoot--
+
+if(boss.shoot<0){
+
+bullets.push({x:bx,y:boss.y+20,speed:6})
+boss.shoot=80
+
+}
+
+if(player.attacking && Math.abs(bx-player.x)<60){
 
 boss.hp--
 
 }
 
-if(Math.abs(bx-player.x)<40 && Math.abs(boss.y-player.y)<50){
+if(Math.abs(bx-player.x)<40 && Math.abs(boss.y-player.y)<60){
 
 triggerGameOver()
 
@@ -226,19 +281,11 @@ triggerGameOver()
 
 if(boss.hp<=0){
 
-stageClear=true
-
-}
-
-}
-
-if(stageClear){
-
 stage++
 document.getElementById("stage").textContent=stage
-
-worldX=0
 init()
+
+}
 
 }
 
@@ -270,7 +317,9 @@ drawDoll(player.x,player.y,"white")
 
 enemies.forEach(e=>{
 
-drawDoll(e.x-worldX,e.y,"red")
+let color=e.type===0?"red":"cyan"
+
+drawDoll(e.x-worldX,e.y,color)
 
 })
 
@@ -278,6 +327,15 @@ obstacles.forEach(o=>{
 
 ctx.fillStyle="gray"
 ctx.fillRect(o.x-worldX,o.y,o.w,o.h)
+
+})
+
+bullets.forEach(b=>{
+
+ctx.fillStyle="orange"
+ctx.beginPath()
+ctx.arc(b.x,b.y,8,0,Math.PI*2)
+ctx.fill()
 
 })
 
@@ -343,6 +401,5 @@ init()
 loop()
 
 </script>
-
 </body>
 </html>
