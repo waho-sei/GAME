@@ -2,206 +2,298 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Doll Slayer - Oni Battle</title>
+<title>Doll Slayer Scroll Action</title>
+
 <style>
 body{
     margin:0;
     overflow:hidden;
-    background:linear-gradient(#0a0a0a,#4b0000);
+    background:black;
     font-family:sans-serif;
+    color:white;
 }
+
 canvas{
     display:block;
-    margin:0 auto;
+    margin:auto;
     background:linear-gradient(#111,#330000);
 }
+
 #ui{
     position:absolute;
     top:10px;
     left:10px;
-    color:white;
+}
+
+#controls{
+    position:absolute;
+    bottom:10px;
+    left:10px;
+    font-size:14px;
+}
+
+#restartBtn{
+    position:absolute;
+    top:220px;
+    left:50%;
+    transform:translateX(-50%);
+    padding:12px 25px;
     font-size:18px;
+    display:none;
+    background:crimson;
+    border:none;
+    border-radius:10px;
+    color:white;
 }
 </style>
 </head>
+
 <body>
 
-<div id="ui">
-討伐数: <span id="score">0</span>
+<div id="ui">討伐数: <span id="score">0</span></div>
+
+<div id="controls">
+操作<br>
+← → 移動<br>
+↑ ジャンプ<br>
+Space 攻撃<br>
+Shift 防御
 </div>
+
+<button id="restartBtn" onclick="restartGame()">もう一度挑戦</button>
 
 <canvas id="game" width="900" height="500"></canvas>
 
 <script>
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let keys = {};
-let score = 0;
-let gameOver = false;
+let score;
+let gameOver;
+let worldX;
 
-let player = {
-    x:150,
-    y:350,
-    w:30,
-    h:60,
-    attacking:false,
-    defending:false
-};
-
-let enemy = spawnEnemy();
-let bullets = [];
-let obstacles = [
-    {x:400,y:380,w:40,h:40},
-    {x:650,y:360,w:50,h:60}
-];
-
-function spawnEnemy(){
-    return {
-        x:750,
-        y:350,
-        w:40,
-        h:70,
-        hp:3,
-        shootTimer:120
-    };
-}
+let player;
+let enemy;
+let bullets;
+let obstacles;
 
 document.addEventListener("keydown",e=>keys[e.key]=true);
 document.addEventListener("keyup",e=>keys[e.key]=false);
 
+function init(){
+
+score=0;
+gameOver=false;
+worldX=0;
+
+player={
+x:200,
+y:350,
+vy:0,
+ground:350,
+jump:false,
+attacking:false,
+defending:false
+};
+
+enemy=spawnEnemy();
+
+bullets=[];
+
+obstacles=[
+{x:600,y:380,w:40,h:40},
+{x:1000,y:370,w:50,h:50},
+{x:1500,y:360,w:60,h:60}
+];
+
+document.getElementById("restartBtn").style.display="none";
+}
+
+function spawnEnemy(){
+return{
+x:800+worldX,
+y:350,
+hp:3,
+shootTimer:120
+};
+}
+
 function update(){
 
-    if(gameOver) return;
+if(gameOver) return;
 
-    // 移動
-    if(keys["ArrowRight"]) player.x+=4;
-    if(keys["ArrowLeft"]) player.x-=4;
+if(keys["ArrowRight"]) worldX+=4;
+if(keys["ArrowLeft"] && worldX>0) worldX-=4;
 
-    // 攻撃
-    if(keys[" "] && !player.attacking){
-        player.attacking=true;
-        setTimeout(()=>player.attacking=false,200);
-    }
-
-    // 防御
-    player.defending = keys["Shift"];
-
-    // 敵攻撃
-    enemy.shootTimer--;
-    if(enemy.shootTimer<=0){
-        bullets.push({
-            x:enemy.x,
-            y:enemy.y+20,
-            r:8,
-            speed:5
-        });
-        enemy.shootTimer=100;
-    }
-
-    bullets.forEach(b=>b.x-=b.speed);
-
-    // 攻撃判定
-    if(player.attacking && 
-       Math.abs(player.x-enemy.x)<50){
-        enemy.hp--;
-        player.attacking=false;
-    }
-
-    // 弾衝突
-    bullets.forEach(b=>{
-        if(Math.abs(b.x-player.x)<20 &&
-           Math.abs(b.y-player.y)<40){
-            if(player.defending){
-                b.speed=-b.speed;
-            }else{
-                gameOver=true;
-            }
-        }
-    });
-
-    // 障害物衝突
-    obstacles.forEach(o=>{
-        if(player.x+player.w>o.x &&
-           player.x<o.x+o.w &&
-           player.y+player.h>o.y){
-            gameOver=true;
-        }
-    });
-
-    // 敵撃破
-    if(enemy.hp<=0){
-        score++;
-        enemy=spawnEnemy();
-    }
-
-    document.getElementById("score").textContent=score;
+if(keys["ArrowUp"] && !player.jump){
+player.vy=-12;
+player.jump=true;
 }
 
-function drawPlayer(){
-    // 人形（頭）
-    ctx.fillStyle="white";
-    ctx.beginPath();
-    ctx.arc(player.x+15,player.y,10,0,Math.PI*2);
-    ctx.fill();
-    // 体
-    ctx.fillRect(player.x+12,player.y+10,6,25);
-    // 手足
-    ctx.fillRect(player.x,player.y+15,12,4);
-    ctx.fillRect(player.x+18,player.y+15,12,4);
-    ctx.fillRect(player.x+5,player.y+35,5,20);
-    ctx.fillRect(player.x+20,player.y+35,5,20);
+player.vy+=0.6;
+player.y+=player.vy;
 
-    if(player.defending){
-        ctx.strokeStyle="cyan";
-        ctx.beginPath();
-        ctx.arc(player.x+15,player.y+30,40,0,Math.PI*2);
-        ctx.stroke();
-    }
-
-    if(player.attacking){
-        ctx.fillStyle="yellow";
-        ctx.fillRect(player.x+30,player.y+15,20,10);
-    }
+if(player.y>=player.ground){
+player.y=player.ground;
+player.vy=0;
+player.jump=false;
 }
 
-function drawEnemy(){
-    ctx.fillStyle="red";
-    ctx.fillRect(enemy.x,enemy.y,enemy.w,enemy.h);
+if(keys[" "] && !player.attacking){
+player.attacking=true;
+setTimeout(()=>player.attacking=false,200);
+}
+
+player.defending=keys["Shift"];
+
+enemy.shootTimer--;
+if(enemy.shootTimer<=0){
+
+bullets.push({
+x:enemy.x-worldX,
+y:enemy.y+20,
+r:8,
+speed:5
+});
+
+enemy.shootTimer=100;
+
+}
+
+bullets.forEach(b=>b.x-=b.speed);
+
+if(player.attacking && Math.abs((enemy.x-worldX)-player.x)<50){
+enemy.hp--;
+}
+
+bullets.forEach(b=>{
+
+if(Math.abs(b.x-player.x)<20 && Math.abs(b.y-player.y)<40){
+
+if(player.defending){
+b.speed=-b.speed;
+}else{
+triggerGameOver();
+}
+
+}
+
+});
+
+obstacles.forEach(o=>{
+
+let ox=o.x-worldX;
+
+if(player.x+30>ox && player.x<ox+o.w && player.y+60>o.y){
+triggerGameOver();
+}
+
+});
+
+if(enemy.hp<=0){
+score++;
+enemy=spawnEnemy();
+}
+
+document.getElementById("score").textContent=score;
+
+}
+
+function drawDoll(x,y,color){
+
+ctx.fillStyle=color;
+
+ctx.beginPath();
+ctx.arc(x+15,y,10,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillRect(x+12,y+10,6,25);
+
+ctx.fillRect(x,y+15,12,4);
+ctx.fillRect(x+18,y+15,12,4);
+
+ctx.fillRect(x+5,y+35,5,20);
+ctx.fillRect(x+20,y+35,5,20);
+
 }
 
 function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    drawPlayer();
-    drawEnemy();
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    ctx.fillStyle="orange";
-    bullets.forEach(b=>{
-        ctx.beginPath();
-        ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
-        ctx.fill();
-    });
+for(let i=0;i<50;i++){
 
-    ctx.fillStyle="gray";
-    obstacles.forEach(o=>{
-        ctx.fillRect(o.x,o.y,o.w,o.h);
-    });
+ctx.fillStyle="#222";
+ctx.fillRect(i*200-worldX*0.5,400,150,5);
 
-    if(gameOver){
-        ctx.fillStyle="white";
-        ctx.font="50px sans-serif";
-        ctx.fillText("GAME OVER",300,250);
-    }
+}
+
+drawDoll(player.x,player.y,"white");
+
+drawDoll(enemy.x-worldX,enemy.y,"red");
+
+if(player.defending){
+ctx.strokeStyle="cyan";
+ctx.beginPath();
+ctx.arc(player.x+15,player.y+30,40,0,Math.PI*2);
+ctx.stroke();
+}
+
+if(player.attacking){
+ctx.fillStyle="yellow";
+ctx.fillRect(player.x+30,player.y+20,20,10);
+}
+
+ctx.fillStyle="orange";
+
+bullets.forEach(b=>{
+ctx.beginPath();
+ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+ctx.fill();
+});
+
+ctx.fillStyle="gray";
+
+obstacles.forEach(o=>{
+ctx.fillRect(o.x-worldX,o.y,o.w,o.h);
+});
+
+if(gameOver){
+
+ctx.fillStyle="white";
+ctx.font="50px sans-serif";
+ctx.fillText("GAME OVER",300,250);
+
+}
+
+}
+
+function triggerGameOver(){
+
+gameOver=true;
+document.getElementById("restartBtn").style.display="block";
+
+}
+
+function restartGame(){
+
+init();
+
 }
 
 function loop(){
-    update();
-    draw();
-    requestAnimationFrame(loop);
+
+update();
+draw();
+requestAnimationFrame(loop);
+
 }
 
+init();
 loop();
+
 </script>
 
 </body>
