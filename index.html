@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>鬼討伐ゲーム - Demon Hunter</title>
+<style>
+body{
+    margin:0;
+    font-family:sans-serif;
+    text-align:center;
+    background:linear-gradient(135deg,#000000,#8b0000);
+    color:white;
+    overflow:hidden;
+}
+
+h1{
+    margin:20px 0;
+    text-shadow:0 0 15px crimson;
+}
+
+#game{
+    position:relative;
+    height:70vh;
+}
+
+#oni{
+    position:absolute;
+    width:120px;
+    height:120px;
+    background:radial-gradient(circle,#ff0000,#550000);
+    border-radius:50%;
+    top:40%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 30px red;
+    transition:0.1s;
+}
+
+#hpBarContainer{
+    width:80%;
+    height:20px;
+    background:#333;
+    margin:10px auto;
+    border-radius:10px;
+}
+
+#hpBar{
+    height:100%;
+    width:100%;
+    background:lime;
+    border-radius:10px;
+    transition:0.3s;
+}
+
+button{
+    padding:10px 20px;
+    border:none;
+    border-radius:10px;
+    background:crimson;
+    color:white;
+    font-size:16px;
+    margin:10px;
+}
+
+button:active{
+    transform:scale(0.95);
+}
+
+#message{
+    margin-top:10px;
+    font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🔥 鬼討伐任務 🔥</h1>
+
+<div id="hpBarContainer">
+    <div id="hpBar"></div>
+</div>
+
+<div id="game">
+    <div id="oni"></div>
+</div>
+
+<button onclick="specialAttack()">必殺技⚔</button>
+
+<div id="message"></div>
+<div id="score"></div>
+
+<script>
+let maxHP = 100;
+let currentHP = maxHP;
+let score = 0;
+let level = 1;
+
+const oni = document.getElementById("oni");
+const hpBar = document.getElementById("hpBar");
+const message = document.getElementById("message");
+const scoreDisplay = document.getElementById("score");
+
+function updateHP(){
+    hpBar.style.width = (currentHP/maxHP*100)+"%";
+    if(currentHP > 60){
+        hpBar.style.background="lime";
+    }else if(currentHP > 30){
+        hpBar.style.background="yellow";
+    }else{
+        hpBar.style.background="red";
+    }
+}
+
+function attack(){
+    let damage = Math.floor(Math.random()*8)+3;
+    currentHP -= damage;
+
+    oni.style.transform="translate(-50%,-50%) scale(1.1)";
+    setTimeout(()=>oni.style.transform="translate(-50%,-50%) scale(1)",100);
+
+    if(currentHP <= 0){
+        score++;
+        level++;
+        message.textContent="👹 鬼を討伐した！ 次の鬼が現れた！";
+        maxHP += 30;
+        currentHP = maxHP;
+        oni.style.background=
+        `radial-gradient(circle,rgb(${100+level*10},0,0),#550000)`;
+    }
+
+    updateHP();
+    scoreDisplay.textContent="討伐数: "+score+" | レベル: "+level;
+}
+
+function specialAttack(){
+    let damage = 30;
+    currentHP -= damage;
+    message.textContent="⚡ 必殺一撃！！";
+    oni.style.boxShadow="0 0 60px white";
+    setTimeout(()=>oni.style.boxShadow="0 0 30px red",200);
+    updateHP();
+}
+
+oni.addEventListener("click",attack);
+oni.addEventListener("touchstart",attack);
+
+updateHP();
+</script>
+
+</body>
+</html>
