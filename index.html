@@ -2,150 +2,146 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>鬼討伐ゲーム - Demon Hunter</title>
+<title>人形剣士 vs 鬼</title>
 <style>
 body{
     margin:0;
-    font-family:sans-serif;
-    text-align:center;
-    background:linear-gradient(135deg,#000000,#8b0000);
-    color:white;
     overflow:hidden;
-}
-
-h1{
-    margin:20px 0;
-    text-shadow:0 0 15px crimson;
-}
-
-#game{
-    position:relative;
-    height:70vh;
-}
-
-#oni{
-    position:absolute;
-    width:120px;
-    height:120px;
-    background:radial-gradient(circle,#ff0000,#550000);
-    border-radius:50%;
-    top:40%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    box-shadow:0 0 30px red;
-    transition:0.1s;
-}
-
-#hpBarContainer{
-    width:80%;
-    height:20px;
-    background:#333;
-    margin:10px auto;
-    border-radius:10px;
-}
-
-#hpBar{
-    height:100%;
-    width:100%;
-    background:lime;
-    border-radius:10px;
-    transition:0.3s;
-}
-
-button{
-    padding:10px 20px;
-    border:none;
-    border-radius:10px;
-    background:crimson;
+    background:linear-gradient(#0a0a0a,#5a0000);
+    font-family:sans-serif;
     color:white;
-    font-size:16px;
-    margin:10px;
 }
-
-button:active{
-    transform:scale(0.95);
+#ui{
+    position:absolute;
+    top:10px;
+    left:10px;
+    z-index:10;
 }
-
-#message{
-    margin-top:10px;
-    font-weight:bold;
+#gameCanvas{
+    display:block;
+    margin:0 auto;
+    background:linear-gradient(#111,#330000);
 }
 </style>
 </head>
-
 <body>
 
-<h1>🔥 鬼討伐任務 🔥</h1>
-
-<div id="hpBarContainer">
-    <div id="hpBar"></div>
+<div id="ui">
+    HP: <span id="hp">100</span>
+    討伐数: <span id="score">0</span>
 </div>
 
-<div id="game">
-    <div id="oni"></div>
-</div>
-
-<button onclick="specialAttack()">必殺技⚔</button>
-
-<div id="message"></div>
-<div id="score"></div>
+<canvas id="gameCanvas" width="800" height="400"></canvas>
 
 <script>
-let maxHP = 100;
-let currentHP = maxHP;
-let score = 0;
-let level = 1;
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-const oni = document.getElementById("oni");
-const hpBar = document.getElementById("hpBar");
-const message = document.getElementById("message");
-const scoreDisplay = document.getElementById("score");
+let keys = {};
+let player = {
+    x:100,
+    y:300,
+    width:30,
+    height:50,
+    hp:100,
+    attacking:false,
+    dash:false,
+    dashTimer:0
+};
 
-function updateHP(){
-    hpBar.style.width = (currentHP/maxHP*100)+"%";
-    if(currentHP > 60){
-        hpBar.style.background="lime";
-    }else if(currentHP > 30){
-        hpBar.style.background="yellow";
-    }else{
-        hpBar.style.background="red";
-    }
+let enemy = spawnEnemy();
+let score=0;
+
+function spawnEnemy(){
+    return {
+        x:700,
+        y:300,
+        width:40,
+        height:60,
+        hp:40,
+        speed:2+Math.random()*1.5
+    };
 }
 
-function attack(){
-    let damage = Math.floor(Math.random()*8)+3;
-    currentHP -= damage;
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
 
-    oni.style.transform="translate(-50%,-50%) scale(1.1)";
-    setTimeout(()=>oni.style.transform="translate(-50%,-50%) scale(1)",100);
+function update(){
+    if(keys["ArrowRight"]) player.x+=4;
+    if(keys["ArrowLeft"]) player.x-=4;
 
-    if(currentHP <= 0){
+    if(keys[" "] && !player.attacking){
+        player.attacking=true;
+        setTimeout(()=>player.attacking=false,200);
+    }
+
+    if(keys["Shift"] && player.dashTimer<=0){
+        player.dash=true;
+        player.dashTimer=60;
+    }
+
+    if(player.dashTimer>0){
+        player.dashTimer--;
+        if(player.dashTimer<=0) player.dash=false;
+    }
+
+    // 敵追尾
+    if(enemy.x > player.x) enemy.x -= enemy.speed;
+    else enemy.x += enemy.speed;
+
+    // 攻撃判定
+    if(player.attacking &&
+       Math.abs(player.x-enemy.x)<50){
+        enemy.hp -=10;
+    }
+
+    // 被弾判定
+    if(Math.abs(player.x-enemy.x)<30 && !player.dash){
+        player.hp -=0.3;
+    }
+
+    if(enemy.hp<=0){
         score++;
-        level++;
-        message.textContent="👹 鬼を討伐した！ 次の鬼が現れた！";
-        maxHP += 30;
-        currentHP = maxHP;
-        oni.style.background=
-        `radial-gradient(circle,rgb(${100+level*10},0,0),#550000)`;
+        enemy = spawnEnemy();
     }
 
-    updateHP();
-    scoreDisplay.textContent="討伐数: "+score+" | レベル: "+level;
+    if(player.hp<=0){
+        alert("ゲームオーバー！討伐数: "+score);
+        document.location.reload();
+    }
+
+    document.getElementById("hp").textContent=Math.floor(player.hp);
+    document.getElementById("score").textContent=score;
 }
 
-function specialAttack(){
-    let damage = 30;
-    currentHP -= damage;
-    message.textContent="⚡ 必殺一撃！！";
-    oni.style.boxShadow="0 0 60px white";
-    setTimeout(()=>oni.style.boxShadow="0 0 30px red",200);
-    updateHP();
+function drawRect(obj,color){
+    ctx.fillStyle=color;
+    ctx.fillRect(obj.x,obj.y,obj.width,obj.height);
 }
 
-oni.addEventListener("click",attack);
-oni.addEventListener("touchstart",attack);
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-updateHP();
+    // プレイヤー
+    drawRect(player, player.dash?"cyan":"white");
+
+    // 攻撃エフェクト
+    if(player.attacking){
+        ctx.fillStyle="yellow";
+        ctx.fillRect(player.x+30,player.y+10,20,20);
+    }
+
+    // 敵（鬼風）
+    drawRect(enemy,"red");
+}
+
+function gameLoop(){
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
 </script>
 
 </body>
