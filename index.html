@@ -2,64 +2,68 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>人形剣士 vs 鬼</title>
+<title>Doll Slayer - Oni Battle</title>
 <style>
 body{
     margin:0;
     overflow:hidden;
-    background:linear-gradient(#0a0a0a,#5a0000);
+    background:linear-gradient(#0a0a0a,#4b0000);
     font-family:sans-serif;
-    color:white;
+}
+canvas{
+    display:block;
+    margin:0 auto;
+    background:linear-gradient(#111,#330000);
 }
 #ui{
     position:absolute;
     top:10px;
     left:10px;
-    z-index:10;
-}
-#gameCanvas{
-    display:block;
-    margin:0 auto;
-    background:linear-gradient(#111,#330000);
+    color:white;
+    font-size:18px;
 }
 </style>
 </head>
 <body>
 
 <div id="ui">
-    HP: <span id="hp">100</span>
-    討伐数: <span id="score">0</span>
+討伐数: <span id="score">0</span>
 </div>
 
-<canvas id="gameCanvas" width="800" height="400"></canvas>
+<canvas id="game" width="900" height="500"></canvas>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
+const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let keys = {};
+let score = 0;
+let gameOver = false;
+
 let player = {
-    x:100,
-    y:300,
-    width:30,
-    height:50,
-    hp:100,
+    x:150,
+    y:350,
+    w:30,
+    h:60,
     attacking:false,
-    dash:false,
-    dashTimer:0
+    defending:false
 };
 
 let enemy = spawnEnemy();
-let score=0;
+let bullets = [];
+let obstacles = [
+    {x:400,y:380,w:40,h:40},
+    {x:650,y:360,w:50,h:60}
+];
 
 function spawnEnemy(){
     return {
-        x:700,
-        y:300,
-        width:40,
-        height:60,
-        hp:40,
-        speed:2+Math.random()*1.5
+        x:750,
+        y:350,
+        w:40,
+        h:70,
+        hp:3,
+        shootTimer:120
     };
 }
 
@@ -67,81 +71,137 @@ document.addEventListener("keydown",e=>keys[e.key]=true);
 document.addEventListener("keyup",e=>keys[e.key]=false);
 
 function update(){
+
+    if(gameOver) return;
+
+    // 移動
     if(keys["ArrowRight"]) player.x+=4;
     if(keys["ArrowLeft"]) player.x-=4;
 
+    // 攻撃
     if(keys[" "] && !player.attacking){
         player.attacking=true;
         setTimeout(()=>player.attacking=false,200);
     }
 
-    if(keys["Shift"] && player.dashTimer<=0){
-        player.dash=true;
-        player.dashTimer=60;
+    // 防御
+    player.defending = keys["Shift"];
+
+    // 敵攻撃
+    enemy.shootTimer--;
+    if(enemy.shootTimer<=0){
+        bullets.push({
+            x:enemy.x,
+            y:enemy.y+20,
+            r:8,
+            speed:5
+        });
+        enemy.shootTimer=100;
     }
 
-    if(player.dashTimer>0){
-        player.dashTimer--;
-        if(player.dashTimer<=0) player.dash=false;
-    }
-
-    // 敵追尾
-    if(enemy.x > player.x) enemy.x -= enemy.speed;
-    else enemy.x += enemy.speed;
+    bullets.forEach(b=>b.x-=b.speed);
 
     // 攻撃判定
-    if(player.attacking &&
+    if(player.attacking && 
        Math.abs(player.x-enemy.x)<50){
-        enemy.hp -=10;
+        enemy.hp--;
+        player.attacking=false;
     }
 
-    // 被弾判定
-    if(Math.abs(player.x-enemy.x)<30 && !player.dash){
-        player.hp -=0.3;
-    }
+    // 弾衝突
+    bullets.forEach(b=>{
+        if(Math.abs(b.x-player.x)<20 &&
+           Math.abs(b.y-player.y)<40){
+            if(player.defending){
+                b.speed=-b.speed;
+            }else{
+                gameOver=true;
+            }
+        }
+    });
 
+    // 障害物衝突
+    obstacles.forEach(o=>{
+        if(player.x+player.w>o.x &&
+           player.x<o.x+o.w &&
+           player.y+player.h>o.y){
+            gameOver=true;
+        }
+    });
+
+    // 敵撃破
     if(enemy.hp<=0){
         score++;
-        enemy = spawnEnemy();
+        enemy=spawnEnemy();
     }
 
-    if(player.hp<=0){
-        alert("ゲームオーバー！討伐数: "+score);
-        document.location.reload();
-    }
-
-    document.getElementById("hp").textContent=Math.floor(player.hp);
     document.getElementById("score").textContent=score;
 }
 
-function drawRect(obj,color){
-    ctx.fillStyle=color;
-    ctx.fillRect(obj.x,obj.y,obj.width,obj.height);
+function drawPlayer(){
+    // 人形（頭）
+    ctx.fillStyle="white";
+    ctx.beginPath();
+    ctx.arc(player.x+15,player.y,10,0,Math.PI*2);
+    ctx.fill();
+    // 体
+    ctx.fillRect(player.x+12,player.y+10,6,25);
+    // 手足
+    ctx.fillRect(player.x,player.y+15,12,4);
+    ctx.fillRect(player.x+18,player.y+15,12,4);
+    ctx.fillRect(player.x+5,player.y+35,5,20);
+    ctx.fillRect(player.x+20,player.y+35,5,20);
+
+    if(player.defending){
+        ctx.strokeStyle="cyan";
+        ctx.beginPath();
+        ctx.arc(player.x+15,player.y+30,40,0,Math.PI*2);
+        ctx.stroke();
+    }
+
+    if(player.attacking){
+        ctx.fillStyle="yellow";
+        ctx.fillRect(player.x+30,player.y+15,20,10);
+    }
+}
+
+function drawEnemy(){
+    ctx.fillStyle="red";
+    ctx.fillRect(enemy.x,enemy.y,enemy.w,enemy.h);
 }
 
 function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // プレイヤー
-    drawRect(player, player.dash?"cyan":"white");
+    drawPlayer();
+    drawEnemy();
 
-    // 攻撃エフェクト
-    if(player.attacking){
-        ctx.fillStyle="yellow";
-        ctx.fillRect(player.x+30,player.y+10,20,20);
+    ctx.fillStyle="orange";
+    bullets.forEach(b=>{
+        ctx.beginPath();
+        ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    ctx.fillStyle="gray";
+    obstacles.forEach(o=>{
+        ctx.fillRect(o.x,o.y,o.w,o.h);
+    });
+
+    if(gameOver){
+        ctx.fillStyle="white";
+        ctx.font="50px sans-serif";
+        ctx.fillText("GAME OVER",300,250);
     }
-
-    // 敵（鬼風）
-    drawRect(enemy,"red");
 }
 
-function gameLoop(){
+function loop(){
     update();
     draw();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
 
-gameLoop();
+loop();
 </script>
 
 </body>
