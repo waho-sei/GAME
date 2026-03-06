@@ -1,180 +1,146 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Doll Demon Slayer Game</title>
+<title>Doll Oni Battle</title>
 
 <style>
-
 body{
 margin:0;
+overflow:hidden;
 background:black;
-color:white;
 font-family:sans-serif;
-text-align:center;
+color:white;
 }
 
 canvas{
-background:linear-gradient(#223,#445);
 display:block;
 margin:auto;
+background:linear-gradient(#111,#330000);
 }
 
 #ui{
-padding:10px;
+position:absolute;
+top:10px;
+left:10px;
 }
 
-button{
-padding:10px 20px;
+#controls{
+position:absolute;
+bottom:10px;
+left:10px;
+font-size:14px;
+}
+
+#restart{
+position:absolute;
+top:220px;
+left:50%;
+transform:translateX(-50%);
+padding:12px 25px;
 font-size:18px;
+display:none;
+background:crimson;
+border:none;
+border-radius:10px;
+color:white;
 }
-
 </style>
 </head>
 
 <body>
 
 <div id="ui">
-
-<h2>人形 鬼討伐ゲーム</h2>
-
-<p>
-← → 移動　
-<br>
-↑ ジャンプ　
-<br>
-SPACE 攻撃　
-<br>
-SHIFT 防御
-</p>
-
-<p>
-【ボスの倒し方】<br>
-ボスの弾を防御して近づき攻撃！
-</p>
-
-<button onclick="restart()">やり直す</button>
-
-<p id="stage">STAGE 1</p>
-
+STAGE: <span id="stage">1</span>
 </div>
 
-<canvas id="game" width="900" height="450"></canvas>
+<div id="controls">
+操作<br>
+← → 移動<br>
+↑ ジャンプ<br>
+Space 攻撃<br>
+Shift 防御
+</div>
+
+<button id="restart" onclick="restartGame()">もう一度挑戦</button>
+
+<canvas id="game" width="900" height="500"></canvas>
 
 <script>
 
 const canvas=document.getElementById("game")
 const ctx=canvas.getContext("2d")
 
-let stage=1
-let gameOver=false
-
 let keys={}
-
-document.addEventListener("keydown",e=>keys[e.code]=true)
-document.addEventListener("keyup",e=>keys[e.code]=false)
-
-function restart(){
-stage=1
-gameOver=false
-initStage()
-}
+document.addEventListener("keydown",e=>keys[e.key]=true)
+document.addEventListener("keyup",e=>keys[e.key]=false)
 
 let player
 let enemies=[]
 let bullets=[]
 let obstacles=[]
+let boss=null
 
-function initStage(){
+let worldX=0
+let stage=1
+let gameOver=false
+
+function init(){
 
 player={
-x:100,
-y:300,
-vx:0,
+x:200,
+y:350,
 vy:0,
-w:30,
-h:60,
 jump:false,
-def:false
+attacking:false,
+defending:false
 }
 
+worldX=0
 enemies=[]
 bullets=[]
 obstacles=[]
+boss=null
+gameOver=false
 
-let enemyCount=stage+2
+spawnStage()
 
-for(let i=0;i<enemyCount;i++){
+document.getElementById("restart").style.display="none"
+
+}
+
+function spawnStage(){
+
+for(let i=0;i<4;i++){
 
 enemies.push({
-x:400+i*200,
-y:300,
-dir:1,
-hp:2
+x:700+i*300,
+y:350,
+type:Math.floor(Math.random()*2),
+hp:3,
+shoot:120
 })
 
 }
 
-if(stage%3==0){
-
-enemies.push({
-x:700,
-y:280,
-dir:1,
-hp:10,
-boss:true
-})
-
-}
-
-for(let i=0;i<5;i++){
+for(let i=0;i<3;i++){
 
 obstacles.push({
-x:300+i*300,
-y:330,
+x:500+i*400,
+y:380,
 w:40,
 h:40
 })
 
 }
 
-document.getElementById("stage").innerText="STAGE "+stage
-
+boss={
+x:2200,
+y:330,
+hp:15,
+shoot:80,
+dir:1
 }
-
-initStage()
-
-function drawPlayer(){
-
-ctx.fillStyle="white"
-
-ctx.fillRect(player.x,player.y,player.w,player.h)
-
-ctx.fillRect(player.x-10,player.y+10,10,10)
-ctx.fillRect(player.x+30,player.y+10,10,10)
-
-ctx.fillRect(player.x+10,player.y-10,10,10)
-
-}
-
-function drawEnemy(e){
-
-ctx.fillStyle=e.boss?"purple":"red"
-
-ctx.fillRect(e.x,e.y,30,60)
-
-ctx.fillStyle="black"
-
-ctx.fillRect(e.x+5,e.y+10,5,5)
-ctx.fillRect(e.x+20,e.y+10,5,5)
-
-}
-
-function drawObstacle(o){
-
-ctx.fillStyle="gray"
-
-ctx.fillRect(o.x,o.y,o.w,o.h)
 
 }
 
@@ -182,100 +148,164 @@ function update(){
 
 if(gameOver)return
 
-player.vx=0
+if(keys["ArrowRight"]) worldX+=4
+if(keys["ArrowLeft"] && worldX>0) worldX-=4
 
-if(keys["ArrowLeft"])player.vx=-5
-if(keys["ArrowRight"])player.vx=5
-
-if(keys["ArrowUp"]&&!player.jump){
+if(keys["ArrowUp"] && !player.jump){
 
 player.vy=-12
 player.jump=true
 
 }
 
-player.def=keys["ShiftLeft"]
-
-player.x+=player.vx
+player.vy+=0.6
 player.y+=player.vy
 
-player.vy+=0.6
+if(player.y>=350){
 
-if(player.y>300){
-player.y=300
+player.y=350
 player.vy=0
 player.jump=false
-}
-
-if(keys["Space"])attack()
-
-for(let e of enemies){
-
-e.x+=e.dir*2
-
-if(Math.random()<0.01)e.dir*=-1
-
-if(Math.random()<0.02){
-
-bullets.push({
-x:e.x,
-y:e.y+20,
-vx:-4
-})
 
 }
 
+if(keys[" "] && !player.attacking){
+
+player.attacking=true
+setTimeout(()=>player.attacking=false,200)
+
 }
 
-for(let b of bullets){
+player.defending=keys["Shift"]
 
-b.x+=b.vx
+enemies.forEach(e=>{
 
-if(collide(player,b,10,10)){
+let ex=e.x-worldX
 
-if(!player.def){
+if(e.type===0){
 
-gameOver=true
+e.shoot--
+
+if(e.shoot<0){
+
+bullets.push({x:ex,y:e.y+20,speed:5})
+e.shoot=120
 
 }
 
 }
 
-}
+if(e.type===1){
 
-enemies=enemies.filter(e=>e.hp>0)
-
-if(enemies.length==0){
-
-stage++
-initStage()
+if(ex>player.x) e.x-=1.5
+else e.x+=1.5
 
 }
 
-}
-
-function attack(){
-
-for(let e of enemies){
-
-if(Math.abs(player.x-e.x)<60){
+if(player.attacking && Math.abs(ex-player.x)<50){
 
 e.hp--
 
 }
 
+if(Math.abs(ex-player.x)<30 && Math.abs(e.y-player.y)<50){
+
+triggerGameOver()
+
+}
+
+})
+
+enemies=enemies.filter(e=>e.hp>0)
+
+bullets.forEach(b=>{
+
+b.x-=b.speed
+
+if(Math.abs(b.x-player.x)<20 && Math.abs(b.y-player.y)<40){
+
+if(player.defending){
+
+b.speed=-b.speed
+
+}else{
+
+triggerGameOver()
+
 }
 
 }
 
-function collide(p,b,w,h){
+})
 
-return(
-p.x<b.x+w &&
-p.x+p.w>b.x &&
-p.y<b.y+h &&
-p.y+p.h>b.y
-)
+obstacles.forEach(o=>{
+
+let ox=o.x-worldX
+
+if(player.x+30>ox && player.x<ox+o.w && player.y+60>o.y){
+
+triggerGameOver()
+
+}
+
+})
+
+if(boss){
+
+let bx=boss.x-worldX
+
+boss.x+=boss.dir*2
+
+if(boss.x>2400 || boss.x<2000) boss.dir*=-1
+
+boss.shoot--
+
+if(boss.shoot<0){
+
+bullets.push({x:bx,y:boss.y+20,speed:6})
+boss.shoot=80
+
+}
+
+if(player.attacking && Math.abs(bx-player.x)<60){
+
+boss.hp--
+
+}
+
+if(Math.abs(bx-player.x)<40 && Math.abs(boss.y-player.y)<60){
+
+triggerGameOver()
+
+}
+
+if(boss.hp<=0){
+
+stage++
+document.getElementById("stage").textContent=stage
+init()
+
+}
+
+}
+
+}
+
+function drawDoll(x,y,color){
+
+ctx.fillStyle=color
+
+ctx.beginPath()
+ctx.arc(x+15,y,10,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillRect(x+12,y+10,6,25)
+
+ctx.fillRect(x,y+15,12,4)
+ctx.fillRect(x+18,y+15,12,4)
+
+ctx.fillRect(x+5,y+35,5,20)
+ctx.fillRect(x+20,y+35,5,20)
 
 }
 
@@ -283,27 +313,79 @@ function draw(){
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
 
-for(let o of obstacles)drawObstacle(o)
+drawDoll(player.x,player.y,"white")
 
-for(let e of enemies)drawEnemy(e)
+enemies.forEach(e=>{
 
-for(let b of bullets){
+let color=e.type===0?"red":"cyan"
 
-ctx.fillStyle="yellow"
+drawDoll(e.x-worldX,e.y,color)
 
-ctx.fillRect(b.x,b.y,10,10)
+})
+
+obstacles.forEach(o=>{
+
+ctx.fillStyle="gray"
+ctx.fillRect(o.x-worldX,o.y,o.w,o.h)
+
+})
+
+bullets.forEach(b=>{
+
+ctx.fillStyle="orange"
+ctx.beginPath()
+ctx.arc(b.x,b.y,8,0,Math.PI*2)
+ctx.fill()
+
+})
+
+if(boss){
+
+drawDoll(boss.x-worldX,boss.y,"purple")
+
+ctx.fillStyle="white"
+ctx.fillText("BOSS",boss.x-worldX,boss.y-10)
 
 }
 
-drawPlayer()
+if(player.attacking){
+
+ctx.fillStyle="yellow"
+ctx.fillRect(player.x+30,player.y+20,20,10)
+
+}
+
+if(player.defending){
+
+ctx.strokeStyle="cyan"
+ctx.beginPath()
+ctx.arc(player.x+15,player.y+30,40,0,Math.PI*2)
+ctx.stroke()
+
+}
 
 if(gameOver){
 
 ctx.fillStyle="white"
-ctx.font="40px sans-serif"
-ctx.fillText("GAME OVER",350,200)
+ctx.font="50px sans-serif"
+ctx.fillText("GAME OVER",300,250)
 
 }
+
+}
+
+function triggerGameOver(){
+
+gameOver=true
+document.getElementById("restart").style.display="block"
+
+}
+
+function restartGame(){
+
+stage=1
+document.getElementById("stage").textContent=stage
+init()
 
 }
 
@@ -311,14 +393,13 @@ function loop(){
 
 update()
 draw()
-
 requestAnimationFrame(loop)
 
 }
 
+init()
 loop()
 
 </script>
-
 </body>
 </html>
