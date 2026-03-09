@@ -2,124 +2,69 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Keyboard 3D Demon Game</title>
+<title>2D Demon Action</title>
 <style>
-body{margin:0;overflow:hidden;background:black;color:white;font-family:sans-serif}
-#ui{position:absolute;top:10px;left:10px}
+body{
+margin:0;
+background:#111;
+overflow:hidden;
+}
+canvas{
+background:#1b2b1b;
+display:block;
+margin:auto;
+}
 </style>
 </head>
 
 <body>
 
-<div id="ui">
-<h3>3D鬼討伐</h3>
-WASD 移動<br>
-← → 視点左右<br>
-↑ ↓ 視点上下<br>
-Space 攻撃<br>
-Shift ダッシュ<br>
-<p id="msg"></p>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<canvas id="game" width="900" height="500"></canvas>
 
 <script>
 
-let scene,camera,renderer
-let demons=[]
+const canvas=document.getElementById("game")
+const ctx=canvas.getContext("2d")
+
+let keys={}
+
+document.addEventListener("keydown",e=>keys[e.key]=true)
+document.addEventListener("keyup",e=>keys[e.key]=false)
+
+let player={
+x:100,
+y:350,
+vx:0,
+vy:0,
+w:30,
+h:50,
+onGround:false
+}
+
+let gravity=0.7
+
+let enemies=[]
 let bullets=[]
-let yaw=0
-let pitch=0
-let gameOver=false
+let obstacles=[]
 
-init()
-animate()
+function createWorld(){
 
-function init(){
+for(let i=0;i<10;i++){
 
-scene=new THREE.Scene()
-scene.background=new THREE.Color(0x0a0a1a)
-
-camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000)
-camera.position.y=1.7
-
-renderer=new THREE.WebGLRenderer()
-renderer.setSize(innerWidth,innerHeight)
-document.body.appendChild(renderer.domElement)
-
-let light=new THREE.DirectionalLight(0x88aaff,1)
-light.position.set(20,50,10)
-scene.add(light)
-
-let ambient=new THREE.AmbientLight(0x404040)
-scene.add(ambient)
-
-createGround()
-createForest()
-createObstacles()
-spawnDemons()
+obstacles.push({
+x:200+i*120,
+y:400,
+w:40,
+h:40
+})
 
 }
 
-function createGround(){
+for(let i=0;i<5;i++){
 
-let g=new THREE.PlaneGeometry(200,200)
-let m=new THREE.MeshStandardMaterial({color:0x223322})
-let floor=new THREE.Mesh(g,m)
-floor.rotation.x=-Math.PI/2
-scene.add(floor)
-
-}
-
-function createForest(){
-
-for(let i=0;i<60;i++){
-
-let tree=new THREE.Mesh(
-new THREE.CylinderGeometry(0.3,0.5,6),
-new THREE.MeshStandardMaterial({color:0x553322})
-)
-
-tree.position.set(Math.random()*180-90,3,Math.random()*180-90)
-
-scene.add(tree)
-
-}
-
-}
-
-function createObstacles(){
-
-for(let i=0;i<25;i++){
-
-let rock=new THREE.Mesh(
-new THREE.BoxGeometry(2,2,2),
-new THREE.MeshStandardMaterial({color:0x555555})
-)
-
-rock.position.set(Math.random()*100-50,1,Math.random()*100-50)
-
-scene.add(rock)
-
-}
-
-}
-
-function spawnDemons(){
-
-for(let i=0;i<6;i++){
-
-let body=new THREE.Mesh(
-new THREE.CylinderGeometry(0.7,0.9,2.5),
-new THREE.MeshStandardMaterial({color:0xaa0000})
-)
-
-body.position.set(Math.random()*60-30,1.2,Math.random()*60-30)
-
-scene.add(body)
-
-demons.push({
-mesh:body,
+enemies.push({
+x:500+i*250,
+y:360,
 cooldown:0
 })
 
@@ -127,94 +72,92 @@ cooldown:0
 
 }
 
-let keys={}
+createWorld()
 
-document.addEventListener("keydown",e=>{
+function shoot(enemy){
 
-keys[e.code]=true
-
-if(e.code==="Space")attack()
-
+bullets.push({
+x:enemy.x,
+y:enemy.y+10,
+vx:-4
 })
 
-document.addEventListener("keyup",e=>keys[e.code]=false)
+}
 
-function attack(){
+function update(){
 
-let p=camera.position
+player.vx=0
 
-for(let d of demons){
+if(keys["ArrowRight"]) player.vx=4
+if(keys["ArrowLeft"]) player.vx=-4
 
-if(p.distanceTo(d.mesh.position)<3){
+if(keys["ArrowUp"] && player.onGround){
 
-scene.remove(d.mesh)
-demons=demons.filter(x=>x!==d)
+player.vy=-12
+player.onGround=false
+
+}
+
+player.vy+=gravity
+
+player.x+=player.vx
+player.y+=player.vy
+
+if(player.y>350){
+
+player.y=350
+player.vy=0
+player.onGround=true
+
+}
+
+for(let o of obstacles){
+
+if(
+player.x<o.x+o.w &&
+player.x+player.w>o.x &&
+player.y+player.h>o.y &&
+player.y+player.h<o.y+20
+){
+
+player.y=o.y-player.h
+player.vy=0
+player.onGround=true
+
+}
+
+}
+
+for(let e of enemies){
+
+if(e.x-camX<900 && e.x-camX>-50){
+
+e.cooldown--
+
+if(e.cooldown<=0){
+
+shoot(e)
+e.cooldown=120
 
 }
 
 }
 
 }
-
-function shoot(demon){
-
-let g=new THREE.SphereGeometry(0.2)
-let m=new THREE.MeshBasicMaterial({color:0xff0000})
-
-let b=new THREE.Mesh(g,m)
-
-b.position.copy(demon.mesh.position)
-
-scene.add(b)
-
-let dir=camera.position.clone().sub(b.position).normalize()
-
-bullets.push({mesh:b,dir:dir})
-
-}
-
-function updateBullets(){
 
 for(let b of bullets){
 
-b.mesh.position.add(b.dir.clone().multiplyScalar(0.4))
+b.x+=b.vx
 
-if(camera.position.distanceTo(b.mesh.position)<1){
+if(
+b.x>player.x &&
+b.x<player.x+player.w &&
+b.y>player.y &&
+b.y<player.y+player.h
+){
 
-gameOver=true
-document.getElementById("msg").innerText="GAME OVER"
-
-}
-
-}
-
-}
-
-function demonLogic(){
-
-for(let d of demons){
-
-let player=camera.position
-
-let dir=player.clone().sub(d.mesh.position).normalize()
-
-d.mesh.position.add(dir.multiplyScalar(0.01))
-
-let vector=d.mesh.position.clone().project(camera)
-
-let visible=
-vector.x>-1&&vector.x<1&&
-vector.y>-1&&vector.y<1&&
-vector.z>0
-
-if(visible){
-
-d.cooldown--
-
-if(d.cooldown<=0){
-
-shoot(d)
-d.cooldown=120
+alert("GAME OVER")
+location.reload()
 
 }
 
@@ -222,58 +165,56 @@ d.cooldown=120
 
 }
 
-}
+let camX=0
 
-function movement(){
+function draw(){
 
-let speed=0.1
+camX=player.x-200
 
-if(keys["ShiftLeft"])speed=0.2
+ctx.clearRect(0,0,900,500)
 
-let dir=new THREE.Vector3()
+ctx.fillStyle="#333"
 
-camera.getWorldDirection(dir)
+ctx.fillRect(0,400,2000,100)
 
-let right=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0))
+ctx.fillStyle="cyan"
+ctx.fillRect(player.x-camX,player.y,player.w,player.h)
 
-if(keys["KeyW"])camera.position.add(dir.clone().multiplyScalar(speed))
-if(keys["KeyS"])camera.position.add(dir.clone().multiplyScalar(-speed))
-if(keys["KeyA"])camera.position.add(right.clone().multiplyScalar(speed))
-if(keys["KeyD"])camera.position.add(right.clone().multiplyScalar(-speed))
+ctx.fillStyle="red"
 
-}
+for(let e of enemies){
 
-function viewControl(){
-
-if(keys["ArrowLeft"])yaw+=0.03
-if(keys["ArrowRight"])yaw-=0.03
-if(keys["ArrowUp"])pitch+=0.02
-if(keys["ArrowDown"])pitch-=0.02
-
-pitch=Math.max(-1.3,Math.min(1.3,pitch))
-
-camera.rotation.order="YXZ"
-camera.rotation.y=yaw
-camera.rotation.x=pitch
+ctx.fillRect(e.x-camX,e.y,30,40)
 
 }
 
-function animate(){
+ctx.fillStyle="orange"
 
-requestAnimationFrame(animate)
+for(let b of bullets){
 
-if(!gameOver){
-
-movement()
-viewControl()
-demonLogic()
-updateBullets()
+ctx.fillRect(b.x-camX,b.y,10,5)
 
 }
 
-renderer.render(scene,camera)
+ctx.fillStyle="gray"
+
+for(let o of obstacles){
+
+ctx.fillRect(o.x-camX,o.y,o.w,o.h)
 
 }
+
+}
+
+function loop(){
+
+update()
+draw()
+requestAnimationFrame(loop)
+
+}
+
+loop()
 
 </script>
 
