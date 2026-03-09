@@ -2,18 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>2D Demon Action</title>
+<title>Samurai Demon Game</title>
 <style>
-body{
-margin:0;
-background:#111;
-overflow:hidden;
-}
-canvas{
-background:#1b2b1b;
-display:block;
-margin:auto;
-}
+body{margin:0;background:#0f1a18}
+canvas{display:block;margin:auto;background:#1f2f28}
 </style>
 </head>
 
@@ -27,17 +19,16 @@ const canvas=document.getElementById("game")
 const ctx=canvas.getContext("2d")
 
 let keys={}
-
 document.addEventListener("keydown",e=>keys[e.key]=true)
 document.addEventListener("keyup",e=>keys[e.key]=false)
 
 let player={
 x:100,
 y:350,
+w:40,
+h:60,
 vx:0,
 vy:0,
-w:30,
-h:50,
 onGround:false
 }
 
@@ -47,20 +38,7 @@ let enemies=[]
 let bullets=[]
 let obstacles=[]
 
-function createWorld(){
-
-for(let i=0;i<10;i++){
-
-obstacles.push({
-x:200+i*120,
-y:400,
-w:40,
-h:40
-})
-
-}
-
-for(let i=0;i<5;i++){
+for(let i=0;i<6;i++){
 
 enemies.push({
 x:500+i*250,
@@ -70,16 +48,41 @@ cooldown:0
 
 }
 
+for(let i=0;i<12;i++){
+
+obstacles.push({
+x:250+i*120,
+y:380,
+w:40,
+h:40
+})
+
 }
 
-createWorld()
+function attack(){
+
+for(let e of enemies){
+
+if(Math.abs(player.x-e.x)<60){
+
+e.dead=true
+
+}
+
+}
+
+}
+
+document.addEventListener("keydown",e=>{
+if(e.key==="z")attack()
+})
 
 function shoot(enemy){
 
 bullets.push({
 x:enemy.x,
-y:enemy.y+10,
-vx:-4
+y:enemy.y+20,
+vx:-5
 })
 
 }
@@ -130,7 +133,9 @@ player.onGround=true
 
 for(let e of enemies){
 
-if(e.x-camX<900 && e.x-camX>-50){
+if(e.dead)continue
+
+if(e.x-player.x<800 && e.x-player.x>-50){
 
 e.cooldown--
 
@@ -167,27 +172,70 @@ location.reload()
 
 let camX=0
 
+function drawPlayer(x,y){
+
+// 体
+ctx.fillStyle="#2ecc71"
+ctx.fillRect(x+10,y+20,20,40)
+
+// 頭
+ctx.fillStyle="#ffd1a4"
+ctx.beginPath()
+ctx.arc(x+20,y+10,10,0,Math.PI*2)
+ctx.fill()
+
+// 目
+ctx.fillStyle="black"
+ctx.fillRect(x+16,y+8,3,3)
+ctx.fillRect(x+21,y+8,3,3)
+
+// 刀
+ctx.fillStyle="silver"
+ctx.fillRect(x+30,y+30,20,3)
+
+}
+
+function drawEnemy(x,y){
+
+//体
+ctx.fillStyle="#aa0000"
+ctx.fillRect(x,y,40,40)
+
+//目
+ctx.fillStyle="white"
+ctx.fillRect(x+8,y+10,8,8)
+ctx.fillRect(x+24,y+10,8,8)
+
+//角
+ctx.fillStyle="black"
+ctx.fillRect(x+5,y-10,5,10)
+ctx.fillRect(x+30,y-10,5,10)
+
+}
+
 function draw(){
 
 camX=player.x-200
 
 ctx.clearRect(0,0,900,500)
 
-ctx.fillStyle="#333"
-
+//地面
+ctx.fillStyle="#2c3e2f"
 ctx.fillRect(0,400,2000,100)
 
-ctx.fillStyle="cyan"
-ctx.fillRect(player.x-camX,player.y,player.w,player.h)
+//プレイヤー
+drawPlayer(player.x-camX,player.y)
 
-ctx.fillStyle="red"
-
+//敵
 for(let e of enemies){
 
-ctx.fillRect(e.x-camX,e.y,30,40)
+if(e.dead)continue
+
+drawEnemy(e.x-camX,e.y)
 
 }
 
+//弾
 ctx.fillStyle="orange"
 
 for(let b of bullets){
@@ -196,6 +244,7 @@ ctx.fillRect(b.x-camX,b.y,10,5)
 
 }
 
+//障害物
 ctx.fillStyle="gray"
 
 for(let o of obstacles){
